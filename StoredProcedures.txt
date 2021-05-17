@@ -1,0 +1,116 @@
+--(1) storeproducedure
+create or replace function movie_junction.suggetion(uid integer) 
+returns table(
+	showid int,
+	showname varchar(50),
+	showtype varchar(50)
+) as $$
+
+declare 
+	r wishlist.showid%type;
+	s genre.genre%type;
+	q record;
+begin
+	for r in select wishlist.showid from wishlist where userid=uid 
+	loop 
+		for s in select genre from genre where r=genre.showid 
+		loop
+			for  q in select shows.showid,shows.showname,shows.showtype from shows natural join genre where genre.genre=s and averagerating>6 
+			loop
+				showid := q.showid;
+				showname := q.showname;
+				showtype := q.showtype;
+				return next;
+			end loop;
+		end loop;
+	end loop;
+
+end
+$$ LANGUAGE plpgsql;
+
+
+
+--triger
+-- FUNCTION: movie_junction.when_enter()
+
+-- DROP FUNCTION movie_junction.when_enter();
+
+CREATE or replace FUNCTION movie_junction.when_enter()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    
+AS $BODY$
+declare po "movie_junction"."shows"."averagerating"%type;
+		 e "movie_junction"."rated"%rowtype;
+		 co int:=0;
+		 s bigint:=0;
+begin
+		if( TG_OP='INSERT') THEN 
+		co=0;
+		for e in select * from "movie_junction"."rated" where showid = new."showid"
+		loop
+				s = s + e."rating";
+				co = co + 1;
+		end loop;
+		update "movie_junction"."shows" set  "averagerating" = s/co::float;
+ 		ELSIF(TG_OP='DELETE') THEN
+		co=0;
+		for e in select * from "movie_junction"."rated" where showid = OLD."showid"
+		loop
+				s = s + e."rating";
+				co = co + 1;
+		end loop;
+		update "movie_junction"."shows" set  "averagerating" = s/co::float;
+		ELSIF(TG_OP='UPDATE') THEN
+		co=0;
+		for e in select * from "movie_junction"."rated" where showid = new."showid"
+		loop
+				s = s + e."rating";
+				co = co + 1;
+		end loop;
+		update "movie_junction"."shows" set  "averagerating" = s/co::float;
+		END IF;
+		
+		RETURN NEW;
+		
+end$BODY$;
+
+ALTER FUNCTION movie_junction.when_enter()
+    OWNER TO "201701442";
+
+
+
+--(2) storedprocedures
+set search_path to movie_junction;
+create or replace function movie_junction.boc(um varchar(150))
+returns real as $$
+declare
+	f int:=0;
+	f2 int:=0;
+	r real:=0;
+	a1 acted_in.aid%type;
+	s  real:=0;
+	
+begin 
+	for a1 in select acted_in.aid from shows natural join acted_in where shows.showname=um
+	loop
+		f2=f2+1;
+		for r in select movie_junction.movie.boxofficecollection from movie_junction.acted_in natural join movie_junction.movie where acted_in.aid=a1
+		loop 
+			raise notice '%', r;
+			if(r>0) then
+				s=s+r;
+				f=f+1;
+			end if;
+		end loop;
+	end loop;
+	if(f!=0) then
+		s=s/f;
+		end if;
+	if (f2!=0) then
+		s=s/f2;
+		end if;
+		
+return s;
+end;
+$$ LANGUAGE plpgsql;

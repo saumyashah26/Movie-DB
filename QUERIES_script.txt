@@ -1,0 +1,96 @@
+(1) debut list of artists in movie
+
+set search_path to movie_junction ;
+
+select artistname,showname,releasedate from
+(select aid,min(releasedate)as r from acted_in natural join movie group by aid) as f join
+(artist natural join shows natural join movie) on artist.aid=f.aid and movie.releasedate=f.r
+order by artistname asc
+
+(2)Top grossing movies of all time:
+
+select showname,boxofficecollection from movie natural join shows where boxofficecollection is not null
+order by boxofficecollection desc
+limit 10 offset 0
+
+
+(3)Blockbuster movie with earning more than 500
+set search_path to movie_junction;
+ select * from movie where verdict='block buster' and boxofficecollection>500;
+
+(4) Actor of highest grossing movie 
+
+select artistname,showname from
+(select showid from
+(select max(boxofficecollection)as d from movie ) as q join movie on boxofficecollection=q.d) as f
+join (shows natural join (acted_in natural join artist)) on shows.showid=f.showid
+
+(5)Production house having max num collection 
+
+set search_path to movie_junction;
+select * from(select sum(boxofficecollection),pro_name from produced natural join movie group by pro_name) as f
+
+(6) Artists involved in the movies 
+
+set search_path to movie_junction;
+select artistname,showname,releasedate from (select artistname,min(releasedate)as released from artist natural join (acted_in natural join movie natural join shows)
+group by aid)as g
+join
+(select showname,releasedate from shows natural join movie) as t
+on t.releasedate=g.released;
+
+(7)Genre Percentage Chart 
+
+set search_path to movie_junction;
+select genre,count(showid)*100/(select count(distinct(showid)) from shows)as percentage from genre group by genre order by percentage desc
+
+
+(8)TV Series with Highest Number of Episodes 
+
+set search_path to movie_junction;
+select showname,number_of_episodes from shows join tvseries on shows.showid=tvseries.showid order by number_of_episodes desc limit 5;
+
+(9) Director has also acted in the movie 
+
+set search_path to movie_junction ;
+select showname,artistname from shows natural join acted_in natural join artist where aidofdirector=aid;
+
+(10) Year wise top grossing movie earning 
+
+set search_path to movie_junction;
+select shows.showname,yr,max from
+(select * from (select max(boxofficecollection),extract(year from releasedate) as yr from movie 
+natural join shows 
+where extract(year from releasedate)<2020 
+group by extract(year from releasedate)  order by extract(year from releasedate) 
+desc limit 10 offset 0) as s
+join movie on s.max=movie.boxofficecollection and s.yr=extract(year from releasedate)) as q
+natural join shows order by yr
+
+
+
+(11) Year wise top rated movie
+ 
+set search_path to movie_junction;
+select showname,max as rating,yr as year from 
+(select max(averagerating),extract(year from releasedate) as yr from movie 
+natural join shows where averagerating>0  group by yr) as r
+join (select showname,extract(year from releasedate) as yr2,averagerating from shows
+natural join movie) as s
+on r.yr=s.yr2 and max=s.averagerating order by year 
+
+
+(12) Worked artist for given showname
+
+set search_path to movie_junction;
+create or replace view Actor as select artistname,_character from 
+(select * from shows where showname='The Land Before Time VI: The Secret of Saurus Rock') as r
+natural join acted_in natural join artist
+
+create or replace view Director as
+select showname,artistname from shows natural join artist 
+where showname='The Land Before Time VI: The Secret of Saurus Rock'and aid=aidofdirector
+
+create or replace view Writer as
+select showname,artistname from shows natural join artist 
+where showname='The Land Before Time VI: The Secret of Saurus Rock' and aid=aidofwriter

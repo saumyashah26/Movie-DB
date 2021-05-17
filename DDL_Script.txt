@@ -1,0 +1,90 @@
+drop schema if exists movie_junction cascade;
+drop schema;
+create schema movie_junction;
+set search_path to movie_junction;
+
+drop table artist;
+create table artist(
+    aid int primary key,
+    artistname varchar(50),
+    dob date,
+    gender char,
+    country varchar(50),
+    number_of_awards_won int,
+    isdirector bool,
+	iswriter bool,
+    isactor bool
+);
+
+create table if not exists shows(
+	showid int primary key,
+	showname varchar(150),
+	showtype varchar(50),
+	averagerating real,
+	aidofdirector int references artist(aid),
+	aidofwriter int references artist(aid)
+);
+
+create table if not exists movie(
+	showid int references shows(showid),
+	releasedate date,
+	verdict varchar(50),
+	duration int,
+	boxofficecollection bigint,
+	primary key (showid)
+);
+ 
+create table if not exists tvseries(
+	showid int references shows(showid),
+	startdate date,
+	enddate date,
+	season_number int,
+	number_of_episodes int,
+	primary key (showid)
+);
+
+create table if not exists acted_in(
+	aid int references artist(aid),
+	showid int references shows(showid),
+	_character varchar(50),
+	primary key (aid,showid)
+);
+
+create table if not exists production_house(
+	pro_name varchar(50) primary key,
+	number_of_shows_produced int,
+	established_in int
+);
+create table if not exists produced(
+	pro_name varchar(50) references production_house(pro_name),
+	showid int references shows(showid),
+	producer varchar(50),
+	primary key(pro_name,showid)
+);
+
+
+create table if not exists users(
+	userid int primary key,
+	username varchar(50),
+	email varchar(50),
+	passwd varchar(50)
+);
+
+create table if not exists genre(
+	showid int references shows(showid),
+	genre char,
+	primary key(showid,genre)
+);
+
+create table if not exists rated(
+	userid int references users(userid),
+	showid int references shows(showid),
+	rating int,
+	primary key(userid,showid)
+);
+
+create table if not exists wishlist(
+	userid int references users(userid),
+	showid int references shows(showid),
+	primary key(userid,showid)
+);
